@@ -4,6 +4,7 @@ from dash import Dash, dcc, html, dash_table
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 
+# Preparar os dados
 url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
 titanic = pd.read_csv(url)
 titanic['Age'].fillna(titanic['Age'].mean(), inplace=True)
@@ -13,6 +14,21 @@ titanic.drop(columns=['Cabin'], inplace=True)
 titanic['Sex'] = titanic['Sex'].map({'male': 'Masculino', 'female': 'Feminino'})
 titanic['Embarked'] = titanic['Embarked'].map({'S': 'Southampton', 'C': 'Cherbourg', 'Q': 'Queenstown'})
 titanic['Pclass'] = titanic['Pclass'].map({1: 'Primeira Classe', 2: 'Segunda Classe', 3: 'Terceira Classe'})
+
+colunas_traduzidas = {
+    "PassengerId": "ID Passageiro",
+    "Survived": "Sobreviveu",
+    "Pclass": "Classe",
+    "Name": "Nome",
+    "Sex": "Sexo",
+    "Age": "Idade",
+    "SibSp": "Cônjuges/Irmãos",
+    "Parch": "Pais/Filhos",
+    "Ticket": "Bilhete",
+    "Fare": "Tarifa",
+    "Embarked": "Embarque",
+    "FaixaEtaria": "Faixa Etária",
+}
 
 def gerar_grafico(tipo_grafico):
     try:
@@ -77,16 +93,12 @@ def gerar_grafico(tipo_grafico):
         print(f"Erro ao gerar gráfico {tipo_grafico}: {e}")
         return px.scatter(title=f"Erro ao gerar gráfico {tipo_grafico}")
 
-
+# Configurar app
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+# Layout
 app.layout = html.Div([
-    dbc.NavbarSimple(
-        brand="Projeto A3",
-        color="dark",
-        dark=True,
-        className="mb-4"
-    ),
+    dbc.NavbarSimple(brand="Projeto A3", color="dark", dark=True, className="mb-4"),
     html.Div([
         html.H1("Se Aventurando Pelo Titanic", className="text-center mb-4", style={"fontWeight": "bold"}),
         dbc.Row([
@@ -121,65 +133,51 @@ app.layout = html.Div([
                 ])
             ], color="danger", inverse=True, style={"boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.1)"}), width=2),
         ], justify="center", className="mb-4"),
-        html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.Div([
-                        dbc.Tabs(
-                            [
-                                dbc.Tab(label="Dashboard", tab_id="dashboard"),
-                                dbc.Tab(label="Tabela", tab_id="tabela"),
-                            ],
-                            id="toggle-view",
-                            active_tab="dashboard",
-                            className="mb-3",
-                        )
-                    ], className="text-center")
-                ])
-            ]),
-            html.Div(id="view-container", children=[
-                dbc.Row([
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('barras')), width=6),
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('tarifa_classe')), width=6),
-                ]),
-                dbc.Row([
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('distribuicao_idade')), width=6),
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('sobrevivencia_classe')), width=6),
-                ]),
-                dbc.Row([
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('proporcao_sobreviventes')), width=6),
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('tarifa_sobrevivencia')), width=6),
-                ]),
-                dbc.Row([
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('sobrevivencia_faixa_etaria')), width=6),
-                    dbc.Col(dcc.Graph(figure=gerar_grafico('tarifa_idade')), width=6),
-                ]),
-            ], style={"margin": "20px"}),
-        ]),
-    ], style={"textAlign": "center", "padding": "0 100px"}),
-    html.Div(id="table-container", children=[
-        dash_table.DataTable(
+        dbc.Tabs([
+            dbc.Tab(label="Dashboard", tab_id="dashboard"),
+            dbc.Tab(label="Tabela", tab_id="tabela")
+        ], id="toggle-view", active_tab="dashboard", className="mb-3"),
+        html.Div(id="view-container"),
+    ], style={"padding": "0 50px"}),
+])
+
+@app.callback(
+    Output("view-container", "children"),
+    Input("toggle-view", "active_tab")
+)
+def alternar_view(toggle_value):
+    if toggle_value == "tabela":
+        return dash_table.DataTable(
             id='tabela-dados',
-            columns=[{"name": i, "id": i} for i in titanic.columns],
+            columns=[{"name": colunas_traduzidas[i], "id": i} for i in titanic.columns],
             data=titanic.to_dict('records'),
-            page_size=20,
+            page_size=10,
             style_table={'overflowX': 'auto'},
             style_cell={'textAlign': 'center'}
         )
-    ], style={"padding": "0 100px"}),
-], style={"backgroundColor": "#F6F6F6", "minHeight": "100vh", "margin": "0"})
 
-@app.callback(
-    [Output("view-container", "style"),
-     Output("table-container", "style")],
-    Input("toggle-view", "active_tab"),
-)
+    graficos = [
+        dbc.Row([
+            dbc.Col(dcc.Graph(figure=gerar_grafico('barras')), width=6),
+            dbc.Col(dcc.Graph(figure=gerar_grafico('tarifa_classe')), width=6),
+        ]),
+        dbc.Row([
+            dbc.Col(dcc.Graph(figure=gerar_grafico('distribuicao_idade')), width=6),
+            dbc.Col(dcc.Graph(figure=gerar_grafico('sobrevivencia_classe')), width=6),
+        ]),
+        dbc.Row([
+            dbc.Col(dcc.Graph(figure=gerar_grafico('proporcao_sobreviventes')), width=6),
+            dbc.Col(dcc.Graph(figure=gerar_grafico('tarifa_sobrevivencia')), width=6),
+        ]),
+        dbc.Row([
+            dbc.Col(dcc.Graph(figure=gerar_grafico('sobrevivencia_faixa_etaria')), width=6),
+            dbc.Col(dcc.Graph(figure=gerar_grafico('tarifa_idade')), width=6),
+        ])
+    ]
 
-def alternar_view(toggle_value):
-    if toggle_value == "tabela":
-        return {"display": "none"}, {"display": "block", "padding": "0 100px"}
-    else:
-        return {"display": "block"}, {"display": "none", "padding": "0 100px"}
+    return graficos
+
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
